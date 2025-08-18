@@ -155,12 +155,20 @@ class StreamlitPipeline:
         try:
             # Import Gemini app functions
             original_path = sys.path.copy()
-            sys.path = [str(self.gemini_dir)] + original_path
+            sys.path.insert(0, str(self.gemini_dir))
             
-            if 'app' in sys.modules:
-                del sys.modules['app']
+            # Clear any cached app modules to avoid conflicts
+            modules_to_clear = [key for key in sys.modules.keys() if key.startswith('app')]
+            for module in modules_to_clear:
+                if module in sys.modules:
+                    del sys.modules[module]
             
-            from app import generate_tts_script_and_audio
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("gemini_app", self.gemini_dir / "app.py")
+            gemini_app = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(gemini_app)
+            
+            generate_tts_script_and_audio = gemini_app.generate_tts_script_and_audio
             
             self.update_status(1, 'running', '🎤 Generating script with Gemini AI...', 25, 'Creating engaging content')
             
@@ -202,12 +210,20 @@ class StreamlitPipeline:
         try:
             # Import content app functions
             original_path = sys.path.copy()
-            sys.path = [str(self.content_dir)] + original_path
+            sys.path.insert(0, str(self.content_dir))
             
-            if 'app' in sys.modules:
-                del sys.modules['app']
+            # Clear any cached app modules to avoid conflicts
+            modules_to_clear = [key for key in sys.modules.keys() if key.startswith('app')]
+            for module in modules_to_clear:
+                if module in sys.modules:
+                    del sys.modules[module]
             
-            from app import search_and_download_videos_direct
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("content_app", self.content_dir / "app.py")
+            content_app = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(content_app)
+            
+            search_and_download_videos_direct = content_app.search_and_download_videos_direct
             
             # Create videos directory in output
             videos_dir = self.output_dir / "videos"
@@ -268,12 +284,20 @@ class StreamlitPipeline:
         try:
             # Import editing functions
             original_path = sys.path.copy()
-            sys.path = [str(self.edited_dir)] + original_path
+            sys.path.insert(0, str(self.edited_dir))
             
-            if 'editing' in sys.modules:
-                del sys.modules['editing']
+            # Clear any cached editing modules to avoid conflicts
+            modules_to_clear = [key for key in sys.modules.keys() if key.startswith('editing')]
+            for module in modules_to_clear:
+                if module in sys.modules:
+                    del sys.modules[module]
             
-            from editing import beat_synced_reel
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("editing_module", self.edited_dir / "editing.py")
+            editing_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(editing_module)
+            
+            beat_synced_reel = editing_module.beat_synced_reel
             
             # Prepare paths
             audio_path = self.current_audio
@@ -319,12 +343,21 @@ class StreamlitPipeline:
         try:
             # Import subtitle functions
             original_path = sys.path.copy()
-            sys.path = [str(self.edited_dir)] + original_path
+            sys.path.insert(0, str(self.edited_dir))
             
-            if 'generate_subtitles' in sys.modules:
-                del sys.modules['generate_subtitles']
+            # Clear any cached subtitle modules to avoid conflicts
+            modules_to_clear = [key for key in sys.modules.keys() if key.startswith('generate_subtitles')]
+            for module in modules_to_clear:
+                if module in sys.modules:
+                    del sys.modules[module]
             
-            from generate_subtitles import transcribe_audio, create_hard_subtitles
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("subtitle_module", self.edited_dir / "generate_subtitles.py")
+            subtitle_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(subtitle_module)
+            
+            transcribe_audio = subtitle_module.transcribe_audio
+            create_hard_subtitles = subtitle_module.create_hard_subtitles
             
             # Prepare paths
             video_path = self.final_video
