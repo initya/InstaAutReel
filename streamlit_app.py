@@ -19,11 +19,21 @@ from datetime import datetime
 import base64
 
 # Add project paths for imports
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.resolve()
 GEMINI_DIR = BASE_DIR / "gemini voice"
 CONTENT_DIR = BASE_DIR / "cont"
 EDITED_DIR = BASE_DIR / "edited"
 OUTPUT_DIR = BASE_DIR / "output"
+
+# Debug: Only print if paths don't exist (for troubleshooting)
+if not GEMINI_DIR.exists():
+    print(f"WARNING: GEMINI_DIR not found at {GEMINI_DIR}")
+    print(f"BASE_DIR = {BASE_DIR}")
+    print(f"Files in BASE_DIR = {list(BASE_DIR.iterdir())[:10] if BASE_DIR.exists() else 'BASE_DIR not found'}")
+if not CONTENT_DIR.exists():
+    print(f"WARNING: CONTENT_DIR not found at {CONTENT_DIR}")
+if not EDITED_DIR.exists():
+    print(f"WARNING: EDITED_DIR not found at {EDITED_DIR}")
 
 # Import configurations
 sys.path.insert(0, str(BASE_DIR))
@@ -129,6 +139,14 @@ class StreamlitPipeline:
         self.output_dir = OUTPUT_DIR
         self.output_dir.mkdir(exist_ok=True)
         
+        # Debug: Only print if there are path issues
+        if not self.gemini_dir.exists():
+            print(f"ERROR: Gemini directory not found at {self.gemini_dir}")
+        if not self.content_dir.exists():
+            print(f"ERROR: Content directory not found at {self.content_dir}")
+        if not self.edited_dir.exists():
+            print(f"ERROR: Edited directory not found at {self.edited_dir}")
+        
         # Pipeline state
         self.current_script = None
         self.current_audio = None
@@ -164,7 +182,13 @@ class StreamlitPipeline:
                     del sys.modules[module]
             
             import importlib.util
-            spec = importlib.util.spec_from_file_location("gemini_app", self.gemini_dir / "app.py")
+            gemini_app_path = self.gemini_dir / "app.py"
+            
+            # Check if the file exists
+            if not gemini_app_path.exists():
+                raise Exception(f"Gemini app file not found at: {gemini_app_path}")
+            
+            spec = importlib.util.spec_from_file_location("gemini_app", str(gemini_app_path))
             gemini_app = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(gemini_app)
             
@@ -219,7 +243,13 @@ class StreamlitPipeline:
                     del sys.modules[module]
             
             import importlib.util
-            spec = importlib.util.spec_from_file_location("content_app", self.content_dir / "app.py")
+            content_app_path = self.content_dir / "app.py"
+            
+            # Check if the file exists
+            if not content_app_path.exists():
+                raise Exception(f"Content app file not found at: {content_app_path}")
+            
+            spec = importlib.util.spec_from_file_location("content_app", str(content_app_path))
             content_app = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(content_app)
             
@@ -293,7 +323,13 @@ class StreamlitPipeline:
                     del sys.modules[module]
             
             import importlib.util
-            spec = importlib.util.spec_from_file_location("editing_module", self.edited_dir / "editing.py")
+            editing_module_path = self.edited_dir / "editing.py"
+            
+            # Check if the file exists
+            if not editing_module_path.exists():
+                raise Exception(f"Editing module file not found at: {editing_module_path}")
+            
+            spec = importlib.util.spec_from_file_location("editing_module", str(editing_module_path))
             editing_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(editing_module)
             
@@ -352,7 +388,13 @@ class StreamlitPipeline:
                     del sys.modules[module]
             
             import importlib.util
-            spec = importlib.util.spec_from_file_location("subtitle_module", self.edited_dir / "generate_subtitles.py")
+            subtitle_module_path = self.edited_dir / "generate_subtitles.py"
+            
+            # Check if the file exists
+            if not subtitle_module_path.exists():
+                raise Exception(f"Subtitle module file not found at: {subtitle_module_path}")
+            
+            spec = importlib.util.spec_from_file_location("subtitle_module", str(subtitle_module_path))
             subtitle_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(subtitle_module)
             

@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: instagram-reel-creator-streamlit
+    env: python
+    plan: free  # or starter for better performance
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run streamlit_app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.16
+      - key: GEMINI_API_KEY
+        sync: false  # Set this in Render dashboard - your Gemini API key
+      - key: PEXELS_API_KEY
+        sync: false  # Set this in Render dashboard - your Pexels API key
+      - key: STREAMLIT_SERVER_HEADLESS
+        value: true
+      - key: STREAMLIT_SERVER_ENABLE_CORS
+        value: false
+      - key: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+        value: false
+    healthCheckPath: /_stcore/health
