@@ -1,0 +1,10 @@
+nature
+technology
+business
+travel
+food
+sports
+art
+music
+science
+education

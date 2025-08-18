@@ -1,0 +1,33 @@
+# Main Pipeline Requirements
+# This file consolidates all dependencies needed for the Instagram Reel Creation Pipeline
+
+# Core dependencies
+Flask>=2.3.0
+Werkzeug>=2.3.0
+requests>=2.31.0
+
+# Gemini AI dependencies
+google-generativeai>=0.3.0
+
+# Video processing dependencies
+moviepy>=1.0.0
+librosa>=0.10.0
+ffmpeg-python>=0.2.0
+
+# Audio processing dependencies
+faster-whisper>=0.10.0
+pysubs2>=1.6.0
+
+# Image processing dependencies
+Pillow>=10.0.0
+
+# Utility dependencies
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Development dependencies (optional)
+python-dotenv>=1.0.0
+
+# Streamlit frontend dependencies
+streamlit>=1.28.0
+watchdog>=3.0.0

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: video-downloader-flask
+    env: python
+    plan: free  # or starter, standard, etc.
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app_cloud_ready.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.16
+      - key: PEXELS_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: IS_CLOUD_DEPLOYMENT
+        value: true
+      - key: MAX_STORAGE_MB
+        value: 100  # Adjust based on your plan
+      - key: ENABLE_DOWNLOADS
+        value: false  # Set to false for metadata-only mode
+      - key: SECRET_KEY
+        generateValue: true

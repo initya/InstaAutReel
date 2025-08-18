@@ -1,0 +1,15 @@
+# Pexels API Configuration
+# Get your free API key at: https://www.pexels.com/api/
+PEXELS_API_KEY=your_actual_api_key_here
+
+# Flask Configuration
+SECRET_KEY=your-secret-key-here-change-in-production
+FLASK_DEBUG=True
+
+# File Storage Configuration
+SAVE_DIR=videos
+UPLOAD_FOLDER=uploads
+
+# Download Configuration
+MAX_VIDEOS_PER_KEYWORD=5
+DOWNLOAD_DELAY=0.5
