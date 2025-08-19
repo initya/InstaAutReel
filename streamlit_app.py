@@ -732,6 +732,29 @@ def main():
                 st.error(f"❌ Step {i}: {title} (Failed)")
             else:
                 st.text(f"⏳ Step {i}: {title}")
+        
+        # Debug: Show current pipeline state
+        if st.session_state.pipeline_status['status'] == 'running':
+            with st.expander("🔍 Pipeline Debug Info", expanded=True):
+                st.write(f"**Current Step:** {current_step}")
+                st.write(f"**Status:** {status}")
+                st.write(f"**Message:** {message}")
+                st.write(f"**Progress:** {progress}%")
+                st.write(f"**Current Task:** {current_task}")
+                
+                # Show what files exist in output directory
+                if OUTPUT_DIR.exists():
+                    output_files = list(OUTPUT_DIR.glob("*"))
+                    if output_files:
+                        st.write("📁 **Output Directory Contents:**")
+                        for file in output_files:
+                            if file.is_file():
+                                size_mb = file.stat().st_size / (1024 * 1024)
+                                st.write(f"  - {file.name} ({size_mb:.2f} MB)")
+                    else:
+                        st.write("📁 Output directory is empty")
+                else:
+                    st.write("📁 Output directory doesn't exist yet")
     
     with col2:
         # Live Results Section
@@ -757,15 +780,39 @@ def main():
                     if os.path.exists(video_file):
                         st.write(f"📹 {os.path.basename(video_file)}")
     
-    # Final Video Display Section
+    # Final Video Display Section - Check for both subtitled and non-subtitled videos
+    final_video_path = None
+    video_title = ""
+    has_subtitles = False
+    
+    # Priority 1: Check for subtitled video
     if st.session_state.generated_content['subtitled_video'] and os.path.exists(st.session_state.generated_content['subtitled_video']):
-        st.header("🎬 Final Instagram Reel")
+        final_video_path = st.session_state.generated_content['subtitled_video']
+        video_title = "🎬 Final Instagram Reel (With Subtitles)"
+        has_subtitles = True
+    # Priority 2: Check for non-subtitled video
+    elif st.session_state.generated_content['final_video'] and os.path.exists(st.session_state.generated_content['final_video']):
+        final_video_path = st.session_state.generated_content['final_video']
+        video_title = "🎬 Final Instagram Reel (Without Subtitles)"
+        has_subtitles = False
+    # Priority 3: Check for any video in output directory
+    else:
+        output_videos = list(OUTPUT_DIR.glob("*.mp4"))
+        if output_videos:
+            # Sort by modification time to get the most recent
+            output_videos.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            final_video_path = str(output_videos[0])
+            video_title = f"🎬 Generated Video: {os.path.basename(final_video_path)}"
+            has_subtitles = "subtitle" in final_video_path.lower()
+    
+    if final_video_path and os.path.exists(final_video_path):
+        st.header(video_title)
         
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col2:
             # Display video player
-            video_data = get_video_player(st.session_state.generated_content['subtitled_video'])
+            video_data = get_video_player(final_video_path)
             
             if video_data:
                 if video_data['type'] == 'file':
@@ -775,7 +822,7 @@ def main():
                     # Use HTML5 video player for smaller files with custom styling
                     video_html = f"""
                     <div class="video-container">
-                        <video width="100%" height="auto" controls style="border-radius: 10px;">
+                        <video width="100%" style="border-radius: 10px;">
                             <source src="data:video/mp4;base64,{video_data['data']}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
@@ -786,7 +833,7 @@ def main():
                 st.error("Video file not found or corrupted")
             
             # Download button
-            with open(st.session_state.generated_content['subtitled_video'], "rb") as file:
+            with open(final_video_path, "rb") as file:
                 st.download_button(
                     label="📥 Download Final Video",
                     data=file.read(),
@@ -797,18 +844,61 @@ def main():
         
         # Video information
         st.subheader("📊 Video Information")
-        video_path = st.session_state.generated_content['subtitled_video']
+        video_path = final_video_path
         file_size = os.path.getsize(video_path) / (1024 * 1024)  # MB
+        
+        # Get video duration using ffprobe
+        video_duration = "Unknown"
+        try:
+            result = subprocess.run(['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_entries', 'format=duration', video_path], 
+                                  capture_output=True, text=True, check=True)
+            import json
+            data = json.loads(result.stdout)
+            duration_seconds = float(data['format']['duration'])
+            video_duration = f"{duration_seconds:.1f}s"
+        except Exception as e:
+            print(f"Could not get video duration: {e}")
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("File Size", f"{file_size:.2f} MB")
         with col2:
-            st.metric("Resolution", "1080x1920")
+            st.metric("Duration", video_duration)
         with col3:
             st.metric("Format", "MP4")
         with col4:
-            st.metric("Subtitles", "Hard-burned")
+            st.metric("Subtitles", "Yes" if has_subtitles else "No")
+        
+        # Debug information
+        with st.expander("🔍 Debug Information", expanded=False):
+            st.write(f"**Video Path:** {final_video_path}")
+            st.write(f"**File Size:** {file_size:.2f} MB")
+            st.write(f"**Duration:** {video_duration}")
+            st.write(f"**Has Subtitles:** {has_subtitles}")
+            st.write(f"**Output Directory Contents:**")
+            if OUTPUT_DIR.exists():
+                for file in OUTPUT_DIR.iterdir():
+                    if file.is_file():
+                        size_mb = file.stat().st_size / (1024 * 1024)
+                        st.write(f"  - {file.name} ({size_mb:.2f} MB)")
+    else:
+        # Show what we're looking for
+        st.header("🎬 Final Instagram Reel")
+        st.info("No final video found yet. The pipeline will generate one here.")
+        
+        # Show what files exist in output directory
+        if OUTPUT_DIR.exists():
+            output_files = list(OUTPUT_DIR.glob("*"))
+            if output_files:
+                st.write("📁 Files in output directory:")
+                for file in output_files:
+                    if file.is_file():
+                        size_mb = file.stat().st_size / (1024 * 1024)
+                        st.write(f"  - {file.name} ({size_mb:.2f} MB)")
+            else:
+                st.write("📁 Output directory is empty")
+        else:
+            st.write("📁 Output directory doesn't exist yet")
     
     # Start pipeline
     if start_pipeline:
@@ -847,6 +937,11 @@ def main():
                 st.session_state.pipeline_status['pipeline_thread'] = pipeline_thread
                 
                 st.success("🚀 Pipeline started! Watch the progress above.")
+                
+                # Add debug info
+                st.info("🔍 Debug: Check the console/terminal for detailed logs")
+                st.info("📁 Output directory will show all generated files")
+                
                 st.rerun()
     
     # Auto-refresh while pipeline is running
