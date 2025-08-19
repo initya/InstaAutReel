@@ -1,0 +1,10 @@
+[33m15a39ad[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix video duration and audio combination issues - proper audio detection, explicit mapping, and enhanced debugging
+[33mc5ff80d[m Add robust subtitle generation with multiple fallback methods and placeholder support
+[33m36dc004[m Add robust video editing fallbacks for cloud deployment - ffmpeg direct and placeholder options
+[33m0a7613c[m Fix MoviePy dependencies and add system packages for video processing
+[33m5997bad[m Fix Google Generative AI import and add TTS fallback with pyttsx3
+[33mbf63faa[m Fix embedded git repository issue - add all gemini voice files properly
+[33mbb25c48[m Fix Streamlit Cloud path issues - robust file discovery for all modules
+[33mc3bf479[m Fix import errors and improve path handling
+[33mdb73c72[m streamliit errors
+[33ma6b987f[m completed

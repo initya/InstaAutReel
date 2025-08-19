@@ -118,19 +118,38 @@ Now, generate the script.
         # Use pyttsx3 for TTS as fallback
         try:
             import pyttsx3
-            engine = pyttsx3.init()
+            
+            # Try to initialize with different TTS backends
+            engine = None
+            for driver in ['espeak', 'sapi5', 'nsss', None]:
+                try:
+                    if driver:
+                        engine = pyttsx3.init(driver)
+                    else:
+                        engine = pyttsx3.init()
+                    print(f"✅ TTS initialized with driver: {driver or 'default'}")
+                    break
+                except Exception as e:
+                    print(f"⚠️ TTS driver {driver or 'default'} failed: {e}")
+                    continue
+            
+            if not engine:
+                raise Exception("No TTS engine available")
             
             # Configure voice settings
-            voices = engine.getProperty('voices')
-            if voices:
-                # Try to use a female voice if available
-                for voice in voices:
-                    if 'female' in voice.name.lower() or 'zira' in voice.name.lower() or 'hazel' in voice.name.lower():
-                        engine.setProperty('voice', voice.id)
-                        break
-            
-            engine.setProperty('rate', 150)    # Speed of speech
-            engine.setProperty('volume', 0.8)  # Volume level
+            try:
+                voices = engine.getProperty('voices')
+                if voices:
+                    # Try to use a female voice if available
+                    for voice in voices:
+                        if 'female' in voice.name.lower() or 'zira' in voice.name.lower() or 'hazel' in voice.name.lower():
+                            engine.setProperty('voice', voice.id)
+                            break
+                
+                engine.setProperty('rate', 150)    # Speed of speech
+                engine.setProperty('volume', 0.8)  # Volume level
+            except Exception as e:
+                print(f"⚠️ Voice configuration failed: {e}, using defaults")
             
             # Generate unique filename
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -145,6 +164,7 @@ Now, generate the script.
             
         except Exception as tts_error:
             print(f"TTS Error: {tts_error}")
+            print("ℹ️ Note: eSpeak is required for TTS on Linux systems")
             # Fallback: create a simple audio file placeholder
             filename = f"tts_audio_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
             # Create a simple placeholder file if TTS fails

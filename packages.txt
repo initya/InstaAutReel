@@ -1,5 +1,6 @@
 ffmpeg
-ffmpeg-dev
+espeak
+espeak-data
 libsm6
 libxext6
 libfontconfig1
