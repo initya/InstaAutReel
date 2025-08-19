@@ -26,6 +26,10 @@ pysubs2>=1.6.0
 soundfile>=0.12.0
 numba>=0.56.0
 
+# Alternative audio processing (fallbacks)
+whisper>=1.1.0
+openai-whisper>=20231117
+
 # Image processing dependencies
 Pillow>=10.0.0
 
