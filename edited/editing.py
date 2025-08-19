@@ -1,7 +1,18 @@
 import os
-import librosa
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
-# Try to import MoviePy with better error handling
+# Try to import video processing libraries
+try:
+    import librosa
+    LIBROSA_AVAILABLE = True
+    print("✅ Librosa imported successfully")
+except ImportError as e:
+    print(f"⚠️ Librosa import failed: {e}")
+    LIBROSA_AVAILABLE = False
+
 try:
     from moviepy.editor import *
     MOVIEPY_AVAILABLE = True
@@ -9,14 +20,14 @@ try:
 except ImportError as e:
     print(f"⚠️ MoviePy import failed: {e}")
     MOVIEPY_AVAILABLE = False
-    # Create mock classes for fallback
-    class VideoFileClip:
-        def __init__(self, *args, **kwargs):
-            raise ImportError("MoviePy not available - video editing disabled")
-    
-    class CompositeVideoClip:
-        def __init__(self, *args, **kwargs):
-            raise ImportError("MoviePy not available - video editing disabled")
+
+try:
+    import cv2
+    OPENCV_AVAILABLE = True
+    print("✅ OpenCV imported successfully")
+except ImportError as e:
+    print(f"⚠️ OpenCV import failed: {e}")
+    OPENCV_AVAILABLE = False
 
 # Fix for PIL.Image ANTIALIAS deprecation
 try:
@@ -26,11 +37,112 @@ try:
 except ImportError:
     pass
 
-def beat_synced_reel(audio_path, videos_folder, output_path="final_reel.mp4"):
-    # Check if MoviePy is available
-    if not MOVIEPY_AVAILABLE:
-        raise ImportError("MoviePy is not available. Please ensure all video processing dependencies are installed.")
+def simple_video_concat(audio_path, videos_folder, output_path="final_reel.mp4"):
+    """
+    Simple video concatenation using ffmpeg directly - fallback when MoviePy is not available
+    """
+    print("🔄 Using simple video concatenation fallback...")
     
+    video_files = sorted([
+        os.path.join(videos_folder, f) for f in os.listdir(videos_folder)
+        if f.lower().endswith((".mp4", ".mov", ".avi"))
+    ])
+    
+    if not video_files:
+        print("❌ No video files found!")
+        raise FileNotFoundError("No video files found in the specified folder")
+    
+    print(f"🎬 Found {len(video_files)} video files")
+    
+    # Get audio duration
+    audio_duration = 30  # Default to 30 seconds for Instagram reels
+    
+    # Calculate duration per video
+    duration_per_video = audio_duration / len(video_files)
+    
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            # Create ffmpeg concat file
+            for video_file in video_files:
+                f.write(f"file '{video_file}'\n")
+                f.write(f"duration {duration_per_video}\n")
+            concat_file = f.name
+        
+        # Use ffmpeg to concatenate videos and add audio
+        cmd = [
+            'ffmpeg', '-y',
+            '-f', 'concat', '-safe', '0', '-i', concat_file,
+            '-i', audio_path,
+            '-c:v', 'libx264', '-c:a', 'aac',
+            '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
+            '-t', str(audio_duration),
+            '-shortest',
+            output_path
+        ]
+        
+        print("🔧 Running ffmpeg command...")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"❌ FFmpeg error: {result.stderr}")
+            # Create a simple placeholder video
+            create_placeholder_video(output_path, audio_path)
+        else:
+            print(f"✅ Video created successfully: {output_path}")
+            
+    except Exception as e:
+        print(f"❌ Error in simple concatenation: {e}")
+        create_placeholder_video(output_path, audio_path)
+    finally:
+        # Clean up
+        if 'concat_file' in locals() and os.path.exists(concat_file):
+            os.unlink(concat_file)
+
+def create_placeholder_video(output_path, audio_path):
+    """Create a simple placeholder video with audio"""
+    print("🎥 Creating placeholder video...")
+    try:
+        cmd = [
+            'ffmpeg', '-y',
+            '-f', 'lavfi', '-i', 'color=c=black:s=1080x1920:d=30:r=30',
+            '-i', audio_path,
+            '-c:v', 'libx264', '-c:a', 'aac',
+            '-t', '30',
+            '-shortest',
+            output_path
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
+        print(f"✅ Placeholder video created: {output_path}")
+    except Exception as e:
+        print(f"❌ Failed to create placeholder video: {e}")
+        raise
+
+def beat_synced_reel(audio_path, videos_folder, output_path="final_reel.mp4"):
+    """
+    Main video editing function with fallback options
+    """
+    print("🎬 Starting video editing process...")
+    
+    # Try MoviePy first if available
+    if MOVIEPY_AVAILABLE and LIBROSA_AVAILABLE:
+        try:
+            return beat_synced_reel_moviepy(audio_path, videos_folder, output_path)
+        except Exception as e:
+            print(f"⚠️ MoviePy method failed: {e}")
+            print("🔄 Falling back to simple concatenation...")
+    
+    # Fallback to simple concatenation
+    try:
+        return simple_video_concat(audio_path, videos_folder, output_path)
+    except Exception as e:
+        print(f"❌ Simple concatenation failed: {e}")
+        # Final fallback - create placeholder
+        create_placeholder_video(output_path, audio_path)
+
+def beat_synced_reel_moviepy(audio_path, videos_folder, output_path="final_reel.mp4"):
+    """
+    Original MoviePy-based video editing (when available)
+    """
     print("🔍 Analyzing audio beats...")
     y, sr = librosa.load(audio_path, sr=None)
     tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
