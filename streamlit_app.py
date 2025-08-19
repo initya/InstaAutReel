@@ -405,7 +405,17 @@ class StreamlitPipeline:
             
             self.update_status(3, 'running', '✂️ Cutting and arranging video clips...', 50, 'Applying transitions')
             
-            # Run video editing
+            # Run video editing with detailed logging
+            print(f"🔍 Starting video editing:")
+            print(f"  Audio path: {audio_path}")
+            print(f"  Videos folder: {videos_folder}")
+            print(f"  Output path: {output_path}")
+            print(f"  Audio file exists: {os.path.exists(audio_path)}")
+            print(f"  Videos folder exists: {os.path.exists(videos_folder)}")
+            if os.path.exists(videos_folder):
+                video_files = os.listdir(videos_folder)
+                print(f"  Video files in folder: {video_files}")
+            
             beat_synced_reel(audio_path, videos_folder, output_path)
             
             if os.path.exists(output_path):

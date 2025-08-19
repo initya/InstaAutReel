@@ -37,6 +37,21 @@ try:
 except ImportError:
     pass
 
+def get_audio_duration(audio_path):
+    """Get the duration of an audio file using ffmpeg"""
+    try:
+        cmd = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_entries', 'format=duration', audio_path]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        
+        import json
+        data = json.loads(result.stdout)
+        duration = float(data['format']['duration'])
+        print(f"🎵 Audio duration detected: {duration:.2f} seconds")
+        return min(duration, 60)  # Cap at 60 seconds for Instagram
+    except Exception as e:
+        print(f"⚠️ Could not detect audio duration: {e}, using 30 seconds default")
+        return 30.0
+
 def simple_video_concat(audio_path, videos_folder, output_path="final_reel.mp4"):
     """
     Simple video concatenation using ffmpeg directly - fallback when MoviePy is not available
@@ -54,8 +69,8 @@ def simple_video_concat(audio_path, videos_folder, output_path="final_reel.mp4")
     
     print(f"🎬 Found {len(video_files)} video files")
     
-    # Get audio duration
-    audio_duration = 30  # Default to 30 seconds for Instagram reels
+    # Get actual audio duration
+    audio_duration = get_audio_duration(audio_path)
     
     # Calculate duration per video
     duration_per_video = audio_duration / len(video_files)
@@ -76,19 +91,30 @@ def simple_video_concat(audio_path, videos_folder, output_path="final_reel.mp4")
             '-c:v', 'libx264', '-c:a', 'aac',
             '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
             '-t', str(audio_duration),
-            '-shortest',
+            '-map', '0:v:0', '-map', '1:a:0',  # Explicitly map video and audio
             output_path
         ]
         
         print("🔧 Running ffmpeg command...")
+        print(f"🔍 Command: {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
-            print(f"❌ FFmpeg error: {result.stderr}")
-            # Create a simple placeholder video
+            print(f"❌ FFmpeg error (return code {result.returncode}): {result.stderr}")
+            print(f"🔍 FFmpeg stdout: {result.stdout}")
+            print("🔄 Falling back to placeholder video...")
             create_placeholder_video(output_path, audio_path)
         else:
             print(f"✅ Video created successfully: {output_path}")
+            # Check if file was actually created and has reasonable size
+            if os.path.exists(output_path):
+                file_size = os.path.getsize(output_path)
+                print(f"📊 File size: {file_size / (1024*1024):.2f} MB")
+                if file_size < 100000:  # Less than 100KB is suspicious
+                    print("⚠️ Video file seems too small, might be corrupted")
+            else:
+                print("❌ Output file was not created")
+                create_placeholder_video(output_path, audio_path)
             
     except Exception as e:
         print(f"❌ Error in simple concatenation: {e}")
@@ -101,18 +127,22 @@ def simple_video_concat(audio_path, videos_folder, output_path="final_reel.mp4")
 def create_placeholder_video(output_path, audio_path):
     """Create a simple placeholder video with audio"""
     print("🎥 Creating placeholder video...")
+    
+    # Get actual audio duration
+    audio_duration = get_audio_duration(audio_path)
+    
     try:
         cmd = [
             'ffmpeg', '-y',
-            '-f', 'lavfi', '-i', 'color=c=black:s=1080x1920:d=30:r=30',
+            '-f', 'lavfi', '-i', f'color=c=black:s=1080x1920:d={audio_duration}:r=30',
             '-i', audio_path,
             '-c:v', 'libx264', '-c:a', 'aac',
-            '-t', '30',
-            '-shortest',
+            '-t', str(audio_duration),
+            '-map', '0:v:0', '-map', '1:a:0',  # Explicitly map video and audio
             output_path
         ]
         subprocess.run(cmd, check=True, capture_output=True)
-        print(f"✅ Placeholder video created: {output_path}")
+        print(f"✅ Placeholder video created: {output_path} ({audio_duration}s)")
     except Exception as e:
         print(f"❌ Failed to create placeholder video: {e}")
         raise
