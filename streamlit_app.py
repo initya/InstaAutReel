@@ -18,18 +18,33 @@ import uuid
 from datetime import datetime
 import base64
 
-# Add project paths for imports
+# Add project paths for imports - with cloud environment compatibility
 BASE_DIR = Path(__file__).parent.resolve()
-GEMINI_DIR = BASE_DIR / "gemini voice"
-CONTENT_DIR = BASE_DIR / "cont"
-EDITED_DIR = BASE_DIR / "edited"
+
+# Try different possible directory structures for cloud vs local
+def find_directory(base_dir, dir_names):
+    """Find directory by trying multiple possible names/locations"""
+    for dir_name in dir_names:
+        dir_path = base_dir / dir_name
+        if dir_path.exists():
+            return dir_path
+    return None
+
+# Find directories with fallback options
+GEMINI_DIR = find_directory(BASE_DIR, ["gemini voice", "gemini_voice", "gemini-voice"]) or BASE_DIR / "gemini voice"
+CONTENT_DIR = find_directory(BASE_DIR, ["cont", "content"]) or BASE_DIR / "cont"
+EDITED_DIR = find_directory(BASE_DIR, ["edited", "edit"]) or BASE_DIR / "edited"
 OUTPUT_DIR = BASE_DIR / "output"
 
 # Debug: Only print if paths don't exist (for troubleshooting)
 if not GEMINI_DIR.exists():
     print(f"WARNING: GEMINI_DIR not found at {GEMINI_DIR}")
     print(f"BASE_DIR = {BASE_DIR}")
-    print(f"Files in BASE_DIR = {list(BASE_DIR.iterdir())[:10] if BASE_DIR.exists() else 'BASE_DIR not found'}")
+    print(f"Files in BASE_DIR = {list(BASE_DIR.iterdir()) if BASE_DIR.exists() else 'BASE_DIR not found'}")
+    print(f"Looking for gemini directories...")
+    for item in BASE_DIR.iterdir():
+        if "gemini" in item.name.lower():
+            print(f"  Found gemini-related: {item}")
 if not CONTENT_DIR.exists():
     print(f"WARNING: CONTENT_DIR not found at {CONTENT_DIR}")
 if not EDITED_DIR.exists():
@@ -182,11 +197,25 @@ class StreamlitPipeline:
                     del sys.modules[module]
             
             import importlib.util
-            gemini_app_path = self.gemini_dir / "app.py"
             
-            # Check if the file exists
-            if not gemini_app_path.exists():
-                raise Exception(f"Gemini app file not found at: {gemini_app_path}")
+            # Try multiple possible locations for the gemini app
+            possible_paths = [
+                self.gemini_dir / "app.py",
+                self.base_dir / "gemini voice" / "app.py",
+                self.base_dir / "gemini_voice" / "app.py",
+                self.base_dir / "gemini-voice" / "app.py",
+                self.base_dir / "app.py"  # fallback to root
+            ]
+            
+            gemini_app_path = None
+            for path in possible_paths:
+                if path.exists():
+                    gemini_app_path = path
+                    break
+            
+            if not gemini_app_path:
+                available_files = list(self.base_dir.iterdir()) if self.base_dir.exists() else []
+                raise Exception(f"Gemini app file not found. Tried paths: {[str(p) for p in possible_paths]}. Available files: {[f.name for f in available_files]}")
             
             spec = importlib.util.spec_from_file_location("gemini_app", str(gemini_app_path))
             gemini_app = importlib.util.module_from_spec(spec)
@@ -243,11 +272,23 @@ class StreamlitPipeline:
                     del sys.modules[module]
             
             import importlib.util
-            content_app_path = self.content_dir / "app.py"
             
-            # Check if the file exists
-            if not content_app_path.exists():
-                raise Exception(f"Content app file not found at: {content_app_path}")
+            # Try multiple possible locations for the content app
+            possible_paths = [
+                self.content_dir / "app.py",
+                self.base_dir / "cont" / "app.py",
+                self.base_dir / "content" / "app.py",
+            ]
+            
+            content_app_path = None
+            for path in possible_paths:
+                if path.exists():
+                    content_app_path = path
+                    break
+            
+            if not content_app_path:
+                available_files = list(self.base_dir.iterdir()) if self.base_dir.exists() else []
+                raise Exception(f"Content app file not found. Tried paths: {[str(p) for p in possible_paths]}. Available files: {[f.name for f in available_files]}")
             
             spec = importlib.util.spec_from_file_location("content_app", str(content_app_path))
             content_app = importlib.util.module_from_spec(spec)
@@ -323,11 +364,23 @@ class StreamlitPipeline:
                     del sys.modules[module]
             
             import importlib.util
-            editing_module_path = self.edited_dir / "editing.py"
             
-            # Check if the file exists
-            if not editing_module_path.exists():
-                raise Exception(f"Editing module file not found at: {editing_module_path}")
+            # Try multiple possible locations for the editing module
+            possible_paths = [
+                self.edited_dir / "editing.py",
+                self.base_dir / "edited" / "editing.py",
+                self.base_dir / "edit" / "editing.py",
+            ]
+            
+            editing_module_path = None
+            for path in possible_paths:
+                if path.exists():
+                    editing_module_path = path
+                    break
+            
+            if not editing_module_path:
+                available_files = list(self.base_dir.iterdir()) if self.base_dir.exists() else []
+                raise Exception(f"Editing module file not found. Tried paths: {[str(p) for p in possible_paths]}. Available files: {[f.name for f in available_files]}")
             
             spec = importlib.util.spec_from_file_location("editing_module", str(editing_module_path))
             editing_module = importlib.util.module_from_spec(spec)
@@ -388,11 +441,23 @@ class StreamlitPipeline:
                     del sys.modules[module]
             
             import importlib.util
-            subtitle_module_path = self.edited_dir / "generate_subtitles.py"
             
-            # Check if the file exists
-            if not subtitle_module_path.exists():
-                raise Exception(f"Subtitle module file not found at: {subtitle_module_path}")
+            # Try multiple possible locations for the subtitle module
+            possible_paths = [
+                self.edited_dir / "generate_subtitles.py",
+                self.base_dir / "edited" / "generate_subtitles.py",
+                self.base_dir / "edit" / "generate_subtitles.py",
+            ]
+            
+            subtitle_module_path = None
+            for path in possible_paths:
+                if path.exists():
+                    subtitle_module_path = path
+                    break
+            
+            if not subtitle_module_path:
+                available_files = list(self.base_dir.iterdir()) if self.base_dir.exists() else []
+                raise Exception(f"Subtitle module file not found. Tried paths: {[str(p) for p in possible_paths]}. Available files: {[f.name for f in available_files]}")
             
             spec = importlib.util.spec_from_file_location("subtitle_module", str(subtitle_module_path))
             subtitle_module = importlib.util.module_from_spec(spec)
