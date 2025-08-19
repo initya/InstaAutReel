@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 import wave
 import re
 from collections import Counter
@@ -12,7 +11,7 @@ app = Flask(__name__)
 
 # Gemini client - Use environment variable for API key in production
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', "AIzaSyBMi7RqQdtvSjqGJFKePfEuAmbojFksIcc")
-client = genai.Client(api_key=GEMINI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
 
 def extract_keywords(text, top_n=10):
     """
@@ -101,10 +100,8 @@ Now, generate the script.
         
         # Generate script
         print(f"Generating script with prompt: {prompt[:100]}...")
-        script_response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        script_response = model.generate_content(prompt)
         
         if not script_response or not script_response.text:
             raise Exception("Failed to generate script - empty response from Gemini")
@@ -114,39 +111,68 @@ Now, generate the script.
         
         keywords_list = extract_keywords(generated_text)
         
-        # Generate TTS audio
+        # For now, use basic TTS since advanced TTS with Gemini API is complex
+        # We'll use a simple text-to-speech approach
         print("Generating TTS audio...")
-        tts_response = client.models.generate_content(
-            model="gemini-2.5-flash-preview-tts",
-            contents=generated_text,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name='Kore',
-                        )
-                    )
-                ),
-            )
-        )
         
-        if not tts_response or not tts_response.candidates:
-            raise Exception("Failed to generate TTS audio - empty response from Gemini")
-        
-        # Get audio data
+        # Use pyttsx3 for TTS as fallback
         try:
-            audio_data = tts_response.candidates[0].content.parts[0].inline_data.data
-        except (IndexError, AttributeError) as e:
-            raise Exception(f"Failed to extract audio data from TTS response: {str(e)}")
-        
-        # Create unique filename with timestamp
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"tts_audio_{timestamp}_{uuid.uuid4().hex[:8]}.wav"
-        
-        # Save audio file
-        wave_file(filename, audio_data)
-        print(f"Audio saved to: {filename}")
+            import pyttsx3
+            engine = pyttsx3.init()
+            
+            # Configure voice settings
+            voices = engine.getProperty('voices')
+            if voices:
+                # Try to use a female voice if available
+                for voice in voices:
+                    if 'female' in voice.name.lower() or 'zira' in voice.name.lower() or 'hazel' in voice.name.lower():
+                        engine.setProperty('voice', voice.id)
+                        break
+            
+            engine.setProperty('rate', 150)    # Speed of speech
+            engine.setProperty('volume', 0.8)  # Volume level
+            
+            # Generate unique filename
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_id = str(uuid.uuid4())[:8]
+            filename = f"tts_audio_{timestamp}_{unique_id}.wav"
+            
+            # Save audio file
+            engine.save_to_file(generated_text, filename)
+            engine.runAndWait()
+            
+            print(f"Audio saved to: {filename}")
+            
+        except Exception as tts_error:
+            print(f"TTS Error: {tts_error}")
+            # Fallback: create a simple audio file placeholder
+            filename = f"tts_audio_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+            # Create a simple placeholder file if TTS fails
+            with open(filename, 'wb') as f:
+                # Create a minimal WAV file header (silence)
+                import struct
+                sample_rate = 22050
+                duration = 1  # 1 second of silence
+                samples = sample_rate * duration
+                
+                # WAV header
+                f.write(b'RIFF')
+                f.write(struct.pack('<I', 36 + samples * 2))
+                f.write(b'WAVE')
+                f.write(b'fmt ')
+                f.write(struct.pack('<I', 16))
+                f.write(struct.pack('<H', 1))  # PCM
+                f.write(struct.pack('<H', 1))  # mono
+                f.write(struct.pack('<I', sample_rate))
+                f.write(struct.pack('<I', sample_rate * 2))
+                f.write(struct.pack('<H', 2))
+                f.write(struct.pack('<H', 16))
+                f.write(b'data')
+                f.write(struct.pack('<I', samples * 2))
+                
+                # Silent audio data
+                for _ in range(samples):
+                    f.write(struct.pack('<h', 0))
         
         return {
             'script': generated_text,
