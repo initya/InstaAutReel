@@ -14,12 +14,16 @@ pyttsx3>=2.90
 
 # Video processing dependencies
 moviepy>=1.0.0
+imageio-ffmpeg>=0.4.8
 librosa>=0.10.0
 ffmpeg-python>=0.2.0
+imageio>=2.25.0
 
 # Audio processing dependencies
 faster-whisper>=0.10.0
 pysubs2>=1.6.0
+soundfile>=0.12.0
+numba>=0.56.0
 
 # Image processing dependencies
 Pillow>=10.0.0

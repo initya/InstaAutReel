@@ -1,6 +1,22 @@
 import os
-from moviepy.editor import *
 import librosa
+
+# Try to import MoviePy with better error handling
+try:
+    from moviepy.editor import *
+    MOVIEPY_AVAILABLE = True
+    print("✅ MoviePy imported successfully")
+except ImportError as e:
+    print(f"⚠️ MoviePy import failed: {e}")
+    MOVIEPY_AVAILABLE = False
+    # Create mock classes for fallback
+    class VideoFileClip:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("MoviePy not available - video editing disabled")
+    
+    class CompositeVideoClip:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("MoviePy not available - video editing disabled")
 
 # Fix for PIL.Image ANTIALIAS deprecation
 try:
@@ -11,6 +27,10 @@ except ImportError:
     pass
 
 def beat_synced_reel(audio_path, videos_folder, output_path="final_reel.mp4"):
+    # Check if MoviePy is available
+    if not MOVIEPY_AVAILABLE:
+        raise ImportError("MoviePy is not available. Please ensure all video processing dependencies are installed.")
+    
     print("🔍 Analyzing audio beats...")
     y, sr = librosa.load(audio_path, sr=None)
     tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
