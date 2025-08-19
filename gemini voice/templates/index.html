@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini TTS Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            resize: vertical;
+            min-height: 120px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .result-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .script-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .keywords-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .keyword {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .download-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .audio-player {
+            width: 100%;
+            margin: 15px 0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #f5c6cb;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .files-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .file-name {
+            flex: 1;
+            font-family: monospace;
+            color: #333;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎙️ Gemini TTS Generator</h1>
+            <p>Generate creative Instagram reel scripts with AI-powered text-to-speech</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Input Section -->
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="customPrompt">Custom Prompt (Optional)</label>
+                    <textarea 
+                        id="customPrompt" 
+                        placeholder="Enter your custom prompt here, or leave empty to use the default Instagram reel script generator..."></textarea>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="generateTTS()">
+                        🎵 Generate TTS Audio
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadFiles()">
+                        📁 View Generated Files
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Generating your TTS audio... This may take a few moments.</p>
+            </div>
+
+            <!-- Error -->
+            <div id="error" class="error"></div>
+
+            <!-- Results Section -->
+            <div id="resultSection" class="result-section">
+                <h2>✨ Generated Content</h2>
+                
+                <div class="script-content">
+                    <h3>📝 Script</h3>
+                    <div id="scriptContent"></div>
+                </div>
+
+                <div class="keywords-section">
+                    <h3>🏷️ Keywords</h3>
+                    <div id="keywordsContent" class="keywords"></div>
+                </div>
+
+                <div class="download-section">
+                    <h3>🎧 Generated Audio</h3>
+                    <audio id="audioPlayer" class="audio-player" controls>
+                        Your browser does not support the audio element.
+                    </audio>
+                    <br>
+                    <a id="downloadBtn" class="btn btn-primary" download>
+                        ⬇️ Download Audio File
+                    </a>
+                </div>
+            </div>
+
+            <!-- Files Section -->
+            <div id="filesSection" class="files-section" style="display: none;">
+                <h2>📂 Generated Files</h2>
+                <ul id="filesList" class="file-list">
+                    <!-- Files will be populated here -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function generateTTS() {
+            const customPrompt = document.getElementById('customPrompt').value.trim();
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const resultSection = document.getElementById('resultSection');
+            
+            // Reset UI
+            loadingDiv.classList.add('show');
+            errorDiv.classList.remove('show');
+            resultSection.classList.remove('show');
+            
+            try {
+                console.log('Sending request to /generate...');
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+                
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        custom_prompt: customPrompt
+                    }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                console.log('Response received:', response.status, response.statusText);
+                
+                // Check if response is ok
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                }
+                
+                // Check if response has content
+                const responseText = await response.text();
+                if (!responseText) {
+                    throw new Error('Empty response from server');
+                }
+                
+                // Try to parse JSON
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    console.error('Response text:', responseText);
+                    throw new Error('Invalid JSON response from server');
+                }
+                
+                if (data.success) {
+                    // Display script
+                    document.getElementById('scriptContent').innerHTML = 
+                        (data.script || '').replace(/\n/g, '<br>');
+                    
+                    // Display keywords
+                    const keywordsDiv = document.getElementById('keywordsContent');
+                    keywordsDiv.innerHTML = '';
+                    if (data.keywords && Array.isArray(data.keywords)) {
+                        data.keywords.forEach(keyword => {
+                            const span = document.createElement('span');
+                            span.className = 'keyword';
+                            span.textContent = keyword;
+                            keywordsDiv.appendChild(span);
+                        });
+                    }
+                    
+                    // Setup audio player and download
+                    if (data.filename) {
+                        const audioPlayer = document.getElementById('audioPlayer');
+                        const downloadBtn = document.getElementById('downloadBtn');
+                        
+                        audioPlayer.src = `/download/${data.filename}`;
+                        downloadBtn.href = `/download/${data.filename}`;
+                        downloadBtn.download = data.filename;
+                        
+                        // Show results
+                        resultSection.classList.add('show');
+                        
+                        // Auto-play audio (some browsers may block this)
+                        audioPlayer.play().catch(() => {
+                            console.log('Auto-play was prevented by browser');
+                        });
+                    } else {
+                        throw new Error('No audio file generated');
+                    }
+                    
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                errorDiv.textContent = `Error: ${error.message}`;
+                errorDiv.classList.add('show');
+            } finally {
+                loadingDiv.classList.remove('show');
+            }
+        }
+
+        async function loadFiles() {
+            const filesSection = document.getElementById('filesSection');
+            const filesList = document.getElementById('filesList');
+            
+            try {
+                const response = await fetch('/files');
+                const data = await response.json();
+                
+                if (data.files && data.files.length > 0) {
+                    filesList.innerHTML = '';
+                    
+                    data.files.forEach(filename => {
+                        const li = document.createElement('li');
+                        li.className = 'file-item';
+                        
+                        li.innerHTML = `
+                            <span class="file-name">${filename}</span>
+                            <div class="file-actions">
+                                <button class="btn btn-secondary btn-small" onclick="playFile('${filename}')">
+                                    ▶️ Play
+                                </button>
+                                <a href="/download/${filename}" class="btn btn-primary btn-small" download="${filename}">
+                                    ⬇️ Download
+                                </a>
+                            </div>
+                        `;
+                        
+                        filesList.appendChild(li);
+                    });
+                    
+                    filesSection.style.display = 'block';
+                } else {
+                    alert('No audio files found');
+                }
+                
+            } catch (error) {
+                console.error('Error loading files:', error);
+                alert('Error loading files');
+            }
+        }
+
+        function playFile(filename) {
+            const audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.src = `/download/${filename}`;
+            audioPlayer.play();
+            
+            // Scroll to audio player
+            document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Auto-load files on page load
+        window.addEventListener('load', () => {
+            loadFiles();
+        });
+    </script>
+</body>
+</html>

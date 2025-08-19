@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+</head>
+<body>
+    <h1>Debug Test for TTS Generator</h1>
+    <button onclick="testGenerate()">Test Generate Endpoint</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testGenerate() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                console.log('Starting test...');
+                
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        custom_prompt: 'Tell me something quick about dogs'
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                
+                if (response.ok) {
+                    const data = JSON.parse(responseText);
+                    resultDiv.innerHTML = `
+                        <h3>Success!</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Success:</strong> ${data.success}</p>
+                        <p><strong>Script:</strong> ${data.script ? data.script.substring(0, 100) + '...' : 'None'}</p>
+                        <p><strong>Filename:</strong> ${data.filename || 'None'}</p>
+                        <p><strong>Keywords count:</strong> ${data.keywords ? data.keywords.length : 0}</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>Error!</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Response:</strong> ${responseText}</p>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                resultDiv.innerHTML = `
+                    <h3>Exception!</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
