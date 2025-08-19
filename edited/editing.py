@@ -38,19 +38,54 @@ except ImportError:
     pass
 
 def get_audio_duration(audio_path):
-    """Get the duration of an audio file using ffmpeg"""
+    """Get the duration of an audio file using ffmpeg with multiple fallback methods"""
+    print(f"🔍 Detecting audio duration for: {audio_path}")
+    
+    # Method 1: Try ffprobe (most accurate)
     try:
         cmd = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_entries', 'format=duration', audio_path]
+        print(f"🔍 Running: {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         
         import json
         data = json.loads(result.stdout)
         duration = float(data['format']['duration'])
-        print(f"🎵 Audio duration detected: {duration:.2f} seconds")
+        print(f"✅ FFprobe detected duration: {duration:.2f} seconds")
         return min(duration, 60)  # Cap at 60 seconds for Instagram
     except Exception as e:
-        print(f"⚠️ Could not detect audio duration: {e}, using 30 seconds default")
-        return 30.0
+        print(f"⚠️ FFprobe failed: {e}")
+    
+    # Method 2: Try ffmpeg info
+    try:
+        cmd = ['ffmpeg', '-i', audio_path, '-f', 'null', '-']
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        # Parse duration from stderr output
+        import re
+        duration_match = re.search(r'Duration: (\d+):(\d+):(\d+)\.(\d+)', result.stderr)
+        if duration_match:
+            hours, minutes, seconds, centiseconds = duration_match.groups()
+            duration = int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(centiseconds) / 100
+            print(f"✅ FFmpeg detected duration: {duration:.2f} seconds")
+            return min(duration, 60)
+    except Exception as e:
+        print(f"⚠️ FFmpeg duration detection failed: {e}")
+    
+    # Method 3: Try to read file size and estimate (rough fallback)
+    try:
+        import os
+        file_size = os.path.getsize(audio_path)
+        # Very rough estimate: 44100 Hz * 2 bytes * 1 channel = ~88KB per second for WAV
+        estimated_duration = file_size / 88000  # Rough estimate
+        if 5 <= estimated_duration <= 120:  # Reasonable range
+            print(f"⚠️ Using file size estimation: {estimated_duration:.2f} seconds")
+            return min(estimated_duration, 60)
+    except Exception as e:
+        print(f"⚠️ File size estimation failed: {e}")
+    
+    # Final fallback
+    print(f"❌ All duration detection methods failed, using 30 seconds default")
+    return 30.0
 
 def simple_video_concat(audio_path, videos_folder, output_path="final_reel.mp4"):
     """
@@ -77,23 +112,40 @@ def simple_video_concat(audio_path, videos_folder, output_path="final_reel.mp4")
     
     try:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-            # Create ffmpeg concat file
-            for video_file in video_files:
-                f.write(f"file '{video_file}'\n")
-                f.write(f"duration {duration_per_video}\n")
+            # Create ffmpeg concat file - repeat videos to fill duration
+            total_needed_duration = audio_duration
+            current_duration = 0
+            
+            while current_duration < total_needed_duration:
+                for video_file in video_files:
+                    if current_duration >= total_needed_duration:
+                        break
+                    
+                    remaining_duration = total_needed_duration - current_duration
+                    clip_duration = min(duration_per_video, remaining_duration)
+                    
+                    f.write(f"file '{video_file}'\n")
+                    f.write(f"duration {clip_duration}\n")
+                    current_duration += clip_duration
+                    
             concat_file = f.name
+            print(f"📝 Created concat file with total duration: {current_duration:.2f} seconds")
         
         # Use ffmpeg to concatenate videos and add audio
+        # Remove -t flag to avoid early truncation, use -shortest instead
         cmd = [
             'ffmpeg', '-y',
             '-f', 'concat', '-safe', '0', '-i', concat_file,
             '-i', audio_path,
             '-c:v', 'libx264', '-c:a', 'aac',
             '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
-            '-t', str(audio_duration),
             '-map', '0:v:0', '-map', '1:a:0',  # Explicitly map video and audio
+            '-shortest',  # Use the shortest input (audio or video)
             output_path
         ]
+        
+        print(f"🎵 Target duration: {audio_duration:.2f} seconds")
+        print(f"🎬 Videos per clip: {duration_per_video:.2f} seconds each")
         
         print("🔧 Running ffmpeg command...")
         print(f"🔍 Command: {' '.join(cmd)}")
@@ -132,19 +184,44 @@ def create_placeholder_video(output_path, audio_path):
     audio_duration = get_audio_duration(audio_path)
     
     try:
+        # Create a simple black video with text overlay matching audio duration
         cmd = [
             'ffmpeg', '-y',
             '-f', 'lavfi', '-i', f'color=c=black:s=1080x1920:d={audio_duration}:r=30',
             '-i', audio_path,
             '-c:v', 'libx264', '-c:a', 'aac',
-            '-t', str(audio_duration),
+            '-vf', 'drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text=\'AI Generated Reel\':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2',
+            '-shortest',  # Use shortest input to avoid truncation issues
             '-map', '0:v:0', '-map', '1:a:0',  # Explicitly map video and audio
             output_path
         ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        print(f"🔍 Placeholder command: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"⚠️ Advanced placeholder failed, trying simple version...")
+            # Fallback to simple black video without text
+            cmd_simple = [
+                'ffmpeg', '-y',
+                '-f', 'lavfi', '-i', f'color=c=black:s=1080x1920:d={audio_duration}:r=30',
+                '-i', audio_path,
+                '-c:v', 'libx264', '-c:a', 'aac',
+                '-shortest',
+                '-map', '0:v:0', '-map', '1:a:0',
+                output_path
+            ]
+            subprocess.run(cmd_simple, check=True, capture_output=True)
+        
         print(f"✅ Placeholder video created: {output_path} ({audio_duration}s)")
+        
+        # Verify the created file
+        if os.path.exists(output_path):
+            file_size = os.path.getsize(output_path)
+            print(f"📊 Placeholder file size: {file_size / (1024*1024):.2f} MB")
+        
     except Exception as e:
         print(f"❌ Failed to create placeholder video: {e}")
+        print(f"🔍 Error details: {result.stderr if 'result' in locals() else 'No error details'}")
         raise
 
 def beat_synced_reel(audio_path, videos_folder, output_path="final_reel.mp4"):
