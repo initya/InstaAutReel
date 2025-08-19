@@ -648,6 +648,20 @@ def main():
             }
             st.rerun()
         
+        # Manual video finder button
+        if st.button("🔍 Find Existing Videos"):
+            st.info("Searching for existing videos in output directory...")
+            output_videos = list(OUTPUT_DIR.glob("*.mp4"))
+            if output_videos:
+                output_videos.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                st.success(f"Found {len(output_videos)} videos!")
+                for i, video in enumerate(output_videos[:5]):  # Show top 5
+                    size_mb = video.stat().st_size / (1024 * 1024)
+                    st.write(f"📹 {video.name} ({size_mb:.1f} MB)")
+                st.rerun()
+            else:
+                st.warning("No MP4 videos found in output directory")
+        
         # System status
         st.subheader("System Status")
         st.info(f"📊 Status: {st.session_state.pipeline_status['status'].title()}")
@@ -804,6 +818,23 @@ def main():
             final_video_path = str(output_videos[0])
             video_title = f"🎬 Generated Video: {os.path.basename(final_video_path)}"
             has_subtitles = "subtitle" in final_video_path.lower()
+            print(f"🔍 Found video in output directory: {final_video_path}")
+            print(f"🔍 Video title: {video_title}")
+            print(f"🔍 Has subtitles: {has_subtitles}")
+    
+    # EMERGENCY FALLBACK: If still no video found, force find the most recent MP4
+    if not final_video_path:
+        print("🚨 EMERGENCY: No video found in session state, searching output directory...")
+        output_videos = list(OUTPUT_DIR.glob("*.mp4"))
+        if output_videos:
+            # Get the most recent video file
+            output_videos.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            final_video_path = str(output_videos[0])
+            video_title = f"🚨 EMERGENCY: Found Video - {os.path.basename(final_video_path)}"
+            has_subtitles = "subtitle" in final_video_path.lower()
+            print(f"🚨 EMERGENCY FALLBACK: Using video: {final_video_path}")
+            print(f"🚨 Video title: {video_title}")
+            print(f"🚨 Has subtitles: {has_subtitles}")
     
     if final_video_path and os.path.exists(final_video_path):
         st.header(video_title)
